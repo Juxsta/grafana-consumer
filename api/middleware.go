@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -19,6 +20,9 @@ func init() {
 		FullTimestamp: true,
 	}
 	logger.Out = os.Stdout
+
+	// Set logrus as the output for the standard log package
+	log.SetOutput(logger.Writer())
 }
 
 // RequestLogger logs all requests with their method, path, and body, and all responses
