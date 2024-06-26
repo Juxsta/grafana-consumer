@@ -25,7 +25,7 @@ func GrafanaAlertHandler(c *gin.Context) {
 
 	// Iterate through alerts
 	for _, alert := range payload.Alerts {
-		if alert.Labels["alertname"] == "Container Health" && strings.Contains(alert.Annotations["description"], "qbittorrent") {
+		if alert.Labels["alertname"] == "Container Health" && alert.Labels["container_name"] == "qbittorrent" {
 			// Restart the qbittorrent container
 			cmd := exec.Command("docker", "restart", "qbittorrent")
 			if err := cmd.Run(); err != nil {
