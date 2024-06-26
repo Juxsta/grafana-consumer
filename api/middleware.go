@@ -3,11 +3,23 @@ package api
 import (
 	"bytes"
 	"io"
-	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
+
+var logger = logrus.New()
+
+func init() {
+	// Set logger to use pretty print format for easier human reading
+	logger.Formatter = &logrus.TextFormatter{
+		ForceColors:   true,
+		FullTimestamp: true,
+	}
+	logger.Out = os.Stdout
+}
 
 // RequestLogger logs all requests with their method, path, and body, and all responses
 func RequestLogger() gin.HandlerFunc {
@@ -19,9 +31,13 @@ func RequestLogger() gin.HandlerFunc {
 		c.Request.Body = io.NopCloser(&requestBody)
 
 		// Log the incoming request
-		log.Printf("Incoming request - Method: %s, Path: %s, Body: %s", c.Request.Method, c.Request.URL.Path, string(body))
+		logger.WithFields(logrus.Fields{
+			"method": c.Request.Method,
+			"path":   c.Request.URL.Path,
+			"body":   string(body),
+		}).Info("Incoming request")
 
-		// Capture the response
+		// Capture the response by replacing the writer
 		blw := &bodyLogWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
 		c.Writer = blw
 
@@ -35,14 +51,11 @@ func RequestLogger() gin.HandlerFunc {
 		latency := time.Since(start)
 
 		// Log the outgoing response
-		log.Printf("Response - Status: %d, Latency: %s, Body: %s", c.Writer.Status(), latency, blw.body.String())
-
-		// Check for errors and log them
-		if len(c.Errors) > 0 {
-			for _, e := range c.Errors.Errors() {
-				log.Printf("Error: %s", e)
-			}
-		}
+		logger.WithFields(logrus.Fields{
+			"status":  c.Writer.Status(),
+			"latency": latency,
+			"body":    blw.body.String(),
+		}).Info("Response logged")
 	}
 }
 
@@ -53,8 +66,4 @@ type bodyLogWriter struct {
 
 func (w bodyLogWriter) Write(b []byte) (int, error) {
 	return w.body.Write(b)
-}
-
-func (w bodyLogWriter) WriteString(s string) (int, error) {
-	return w.body.WriteString(s)
 }

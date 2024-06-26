@@ -1,5 +1,5 @@
 # Use golang base image
-FROM golang:1.20
+FROM golang:1.22
 
 # Install Docker CLI in the container
 RUN apt-get update && apt-get install -y \
@@ -26,8 +26,8 @@ COPY go.sum ./
 # Download all dependencies
 RUN go mod download
 
-# Copy the source code into the container
-COPY *.go ./
+# Copy the entire project directory into the container
+COPY . ./
 
 # Build the application
 RUN go build -o /grafana-consumer

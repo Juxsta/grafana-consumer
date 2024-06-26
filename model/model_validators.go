@@ -8,20 +8,13 @@ import (
 
 var validate = validator.New()
 
-// ValidateGrafanaAlertPayload validates the fields of GrafanaAlertPayload
-func (g GrafanaAlertPayload) Validate() error {
-	// Validate struct based on tags
+// GrafanaWebhookPayload struct with validation tags
+
+// ValidateGrafanaAlertPayload validates the fields of GrafanaWebhookPayload using struct tags
+func ValidateGrafanaAlertPayload(g GrafanaWebhookPayload) error {
 	err := validate.Struct(g)
 	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
-	}
-	return nil
-}
-
-// ValidateEvalMatch validates the fields of EvalMatch
-func (e EvalMatch) Validate() error {
-	if e.Metric == "" {
-		return fmt.Errorf("metric field is required")
 	}
 	return nil
 }
