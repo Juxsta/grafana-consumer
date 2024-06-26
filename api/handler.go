@@ -3,11 +3,13 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/Juxsta/grafana-consumer/model" // Corrected import path
 
@@ -71,6 +73,40 @@ func sendAlertToDiscord(payload model.GrafanaWebhookPayload) error {
 }
 
 func formatMessageForDiscord(payload model.GrafanaWebhookPayload) string {
-	// Customize this function based on how you want the message to appear in Discord
-	return "Alert received: " + payload.Title
+	// Start building the message
+	var messageBuilder strings.Builder
+
+	// Add a title and a link to the external URL if available
+	messageBuilder.WriteString(fmt.Sprintf("**%s**\n", payload.Title))
+	if payload.ExternalURL != "" {
+		messageBuilder.WriteString(fmt.Sprintf("[View Details](%s)\n", payload.ExternalURL))
+	}
+
+	// Add status and message
+	messageBuilder.WriteString(fmt.Sprintf("Status: **%s**\n", payload.Status))
+	messageBuilder.WriteString(fmt.Sprintf("Message: **%s**\n", payload.Message))
+
+	// Loop through each alert and add detailed information
+	for _, alert := range payload.Alerts {
+		messageBuilder.WriteString("\n---\n")
+		messageBuilder.WriteString(fmt.Sprintf("Alert: **%s**\n", alert.Labels["alertname"]))
+		messageBuilder.WriteString(fmt.Sprintf("Severity: **%s**\n", alert.Labels["severity"]))
+		messageBuilder.WriteString(fmt.Sprintf("Starts At: **%s**\n", alert.StartsAt.Format(time.RFC1123)))
+		messageBuilder.WriteString(fmt.Sprintf("Ends At: **%s**\n", alert.EndsAt.Format(time.RFC1123)))
+		messageBuilder.WriteString(fmt.Sprintf("Description: **%s**\n", alert.Annotations["description"]))
+
+		// Include URLs if available
+		if alert.DashboardURL != "" {
+			messageBuilder.WriteString(fmt.Sprintf("[Dashboard](%s)\n", alert.DashboardURL))
+		}
+		if alert.PanelURL != "" {
+			messageBuilder.WriteString(fmt.Sprintf("[Panel](%s)\n", alert.PanelURL))
+		}
+		if alert.ImageURL != "" {
+			messageBuilder.WriteString(fmt.Sprintf("![Image](%s)\n", alert.ImageURL))
+		}
+	}
+
+	// Return the constructed message
+	return messageBuilder.String()
 }
