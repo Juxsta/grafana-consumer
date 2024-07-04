@@ -28,9 +28,17 @@ func GrafanaAlertHandler(c *gin.Context) {
 		if alert.Labels["alertname"] == "Container Health" && alert.Labels["container_name"] == "qbittorrent" {
 			// Restart the qbittorrent container
 			cmd := exec.Command("docker", "restart", "qbittorrent")
-			if err := cmd.Run(); err != nil {
+			err := cmd.Run()
+			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to restart qbittorrent"})
+				go sendAlertToDiscord(model.GrafanaWebhookPayload{
+					Message: "Failed to restart qbittorrent container due to error: " + err.Error(),
+				}) // Send failure message to Discord
 				return
+			} else {
+				go sendAlertToDiscord(model.GrafanaWebhookPayload{
+					Message: "Successfully restarted qbittorrent container.",
+				}) // Send success message to Discord
 			}
 		}
 	}
@@ -48,6 +56,12 @@ func GrafanaAlertHandler(c *gin.Context) {
 }
 
 func sendAlertToDiscord(payload model.GrafanaWebhookPayload) error {
+	// Check if Discord notifications are enabled
+	if os.Getenv("DISCORD_NOTIFICATIONS_ENABLED") != "enable" {
+		log.Println("Discord notifications are disabled.")
+		return nil
+	}
+
 	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
 	message := formatMessageForDiscord(payload)
 	content := map[string]string{"content": message}
@@ -90,10 +104,12 @@ func formatMessageForDiscord(payload model.GrafanaWebhookPayload) string {
 	for _, alert := range payload.Alerts {
 		messageBuilder.WriteString("\n---\n")
 		messageBuilder.WriteString(fmt.Sprintf("Alert: **%s**\n", alert.Labels["alertname"]))
-		messageBuilder.WriteString(fmt.Sprintf("Severity: **%s**\n", alert.Labels["severity"]))
+		// Add alert labels to the message
+		for key, value := range alert.Labels {
+			messageBuilder.WriteString(fmt.Sprintf("%s: **%s**\n", key, value))
+		}
 		messageBuilder.WriteString(fmt.Sprintf("Starts At: **%s**\n", alert.StartsAt.Format(time.RFC1123)))
 		messageBuilder.WriteString(fmt.Sprintf("Ends At: **%s**\n", alert.EndsAt.Format(time.RFC1123)))
-		messageBuilder.WriteString(fmt.Sprintf("Description: **%s**\n", alert.Annotations["description"]))
 
 		// Include URLs if available
 		if alert.DashboardURL != "" {
